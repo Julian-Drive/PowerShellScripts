@@ -1,41 +1,43 @@
-# This script is used to set the profile picture for the current user (Administrator) in Windows.
-# It copies a specified image file to the appropriate directory and converts it to the necessary formats.
-# Ensure the script is run with administrative privileges
-# and that the image file exists at the specified path.
+# Set variables
+$pictureName = "Shield.png"
+$sourcePicturePath = "C:\Users\Administrator\Pictures\$pictureName"
+$CurrentUser = $env:USERNAME
+$picturePath = "C:\Users\$CurrentUser\Pictures\$pictureName"
+$accountPicturesPath = "C:\Users\$CurrentUser\AppData\Roaming\Microsoft\Windows\AccountPictures"
+$publicAccountPictures = "C:\ProgramData\Microsoft\User Account Pictures"
 
-# Path to the new profile picture
-$PicturePath = "C:\Users\Administrator\Pictures\Shield.bmp"
+# Copy the picture to the current user's Pictures folder
+Copy-Item -Path $sourcePicturePath -Destination $picturePath -Force
 
-# Destination path for the account picture
-$AccountPicturesPath = "C:\ProgramData\Microsoft\User Account Pictures"
-$TargetFiles = @(
-    "Administrator.bmp",
-    "Administrator.png",
-    "Administrator.dat"
-)
-
-# Copy the new picture to the account pictures directory (as .png)
-# Convert to .png if necessary
-$pngPath = "$AccountPicturesPath\Administrator.png"
-if (!(Test-Path $AccountPicturesPath)) {
-    New-Item -Path $AccountPicturesPath -ItemType Directory -Force
+# Create destination folder if needed
+if (-not (Test-Path $accountPicturesPath)) {
+    New-Item -ItemType Directory -Path $accountPicturesPath | Out-Null
 }
 
-# Convert to PNG if not already
-if ($PicturePath -notlike "*.png") {
-    Add-Type -AssemblyName System.Drawing
-    $img = [System.Drawing.Image]::FromFile($PicturePath)
-    $img.Save($pngPath, [System.Drawing.Imaging.ImageFormat]::Png)
-    $img.Dispose()
-} else {
-    Copy-Item $PicturePath $pngPath -Force
+# Copy the picture to the user's account pictures folder
+Copy-Item -Path $picturePath -Destination "$accountPicturesPath\$pictureName" -Force
+
+# Optionally update the public account picture (fallback)
+Copy-Item -Path $picturePath -Destination "$publicAccountPictures\user.png" -Force
+
+# Get the SID of the user
+$sid = (Get-LocalUser -Name $CurrentUser).SID.Value
+
+# Set registry keys for the account picture
+$regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AccountPicture\Users\$sid"
+if (-not (Test-Path $regPath)) {
+    New-Item -Path $regPath -Force | Out-Null
 }
-
-# Optionally, copy as .bmp and .dat for legacy support
-Add-Type -AssemblyName System.Drawing
-$img = [System.Drawing.Image]::FromFile($pngPath)
-$img.Save("$AccountPicturesPath\Administrator.bmp", [System.Drawing.Imaging.ImageFormat]::Bmp)
-$img.Dispose()
-Copy-Item $pngPath "$AccountPicturesPath\Administrator.dat" -Force
-
-# Write-Host "Profile picture for 'Administrator' has been updated. You may need to sign out and sign in to see changes."
+$regValue = "$accountPicturesPath\$pictureName"
+Set-ItemProperty -Path $regPath -Name "Image32" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image40" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image48" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image64" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image96" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image192" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image200" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image208" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image240" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image424" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image448" -Value $regValue
+Set-ItemProperty -Path $regPath -Name "Image1080" -Value $regValue
